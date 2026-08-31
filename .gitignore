@@ -1,5 +1,11 @@
+# Dependencies
 node_modules/
+
+# Environment secrets
 .env
+
+# SQLite legacy database files
 tasks.db
 tasks.db-wal
 tasks.db-shm
+
