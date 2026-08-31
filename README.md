@@ -49,7 +49,7 @@ Start the Express server on `http://localhost:3000`:
 npm start
 ```
 
-When started for the first time, `tasks.db` is automatically created, the `tasks` table is initialized, and 3 example tasks are seeded.
+When started for the first time, `tasks.db` is automatically created, the `tasks` table is initialized, and 3 example tasks are seeded automatically.
 
 ---
 
@@ -73,7 +73,7 @@ When started for the first time, `tasks.db` is automatically created, the `tasks
 
 ## 7. SQL Exploration (Stage 4)
 
-We tested and verified queries by hand in SQLite:
+We tested and verified queries by hand in SQLite / DB Browser:
 
 * **Executed Query**:
   ```sql
