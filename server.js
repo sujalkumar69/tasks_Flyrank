@@ -79,6 +79,10 @@ app.get('/tasks/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// Stage 3: Full CRUD Operations (POST, PUT, DELETE)
+// ==========================================
+
 // POST /tasks -> Insert new task into PostgreSQL database
 app.post('/tasks', async (req, res) => {
   const { title } = req.body;
