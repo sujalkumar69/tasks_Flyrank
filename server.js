@@ -83,6 +83,36 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// GET /public/info -> Publicly accessible endpoint
+app.get('/public/info', (req, res) => {
+  res.json({
+    message: "Welcome stranger! This info is public."
+  });
+});
+
+// GET /protected/profile -> Protected profile endpoint (Stage 2: presence check)
+app.get('/protected/profile', (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      error: "Access token required"
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token || token.trim() === '') {
+    return res.status(401).json({
+      error: "Access token required"
+    });
+  }
+
+  res.json({
+    message: "Protected profile accessed (unverified)",
+    tokenReceived: true
+  });
+});
+
 // GET / -> Root endpoint returning API information
 app.get('/', (req, res) => {
   res.json({
