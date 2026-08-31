@@ -50,6 +50,35 @@ app.get('/health', (req, res) => {
   });
 });
 
+// GET /tasks -> List all tasks from database
+app.get('/tasks', (req, res) => {
+  const rows = db.prepare('SELECT id, title, done FROM tasks').all();
+  const tasks = rows.map(r => ({
+    id: r.id,
+    title: r.title,
+    done: Boolean(r.done)
+  }));
+  res.json(tasks);
+});
+
+// GET /tasks/:id -> Get task by ID using parameterized query
+app.get('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  const row = db.prepare('SELECT id, title, done FROM tasks WHERE id = ?').get(taskId);
+
+  if (!row) {
+    return res.status(404).json({
+      error: `Task ${taskId} not found`
+    });
+  }
+
+  res.json({
+    id: row.id,
+    title: row.title,
+    done: Boolean(row.done)
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Swagger UI documentation available at http://localhost:${PORT}/docs`);
