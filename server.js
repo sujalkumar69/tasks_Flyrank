@@ -79,6 +79,28 @@ app.get('/tasks/:id', (req, res) => {
   });
 });
 
+// POST /tasks -> Insert new task into database
+app.post('/tasks', (req, res) => {
+  const { title } = req.body;
+
+  // Validation: title must exist, be a string, and not be empty/whitespace
+  if (!title || typeof title !== 'string' || title.trim() === '') {
+    return res.status(400).json({
+      error: "Title is required and cannot be empty or whitespace"
+    });
+  }
+
+  const cleanTitle = title.trim();
+  const stmt = db.prepare('INSERT INTO tasks (title, done) VALUES (?, 0)');
+  const info = stmt.run(cleanTitle);
+
+  res.status(201).json({
+    id: info.lastInsertRowid,
+    title: cleanTitle,
+    done: false
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Swagger UI documentation available at http://localhost:${PORT}/docs`);
