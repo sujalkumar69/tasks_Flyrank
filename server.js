@@ -4,6 +4,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./openapi.json');
 const { pool, initDb } = require('./db');
 const supabase = require('./supabaseClient');
+const { requireAuth } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,6 +84,16 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// POST /auth/logout -> Protected logout route ending session
+app.post('/auth/logout', requireAuth, async (req, res) => {
+  try {
+    await supabase.auth.signOut();
+    return res.status(204).send();
+  } catch (err) {
+    return res.status(204).send();
+  }
+});
+
 // GET /public/info -> Publicly accessible endpoint
 app.get('/public/info', (req, res) => {
   res.json({
@@ -90,42 +101,25 @@ app.get('/public/info', (req, res) => {
   });
 });
 
-// GET /protected/profile -> Protected profile endpoint (Stage 3: token verification)
-app.get('/protected/profile', async (req, res) => {
-  const authHeader = req.headers.authorization;
+// GET /protected/profile -> Protected profile endpoint using requireAuth
+app.get('/protected/profile', requireAuth, (req, res) => {
+  res.json({
+    id: req.user.id,
+    email: req.user.email,
+    created_at: req.user.created_at
+  });
+});
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      error: "Access token required"
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
-  if (!token || token.trim() === '') {
-    return res.status(401).json({
-      error: "Access token required"
-    });
-  }
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({
-        error: "Invalid or expired token"
-      });
+// GET /protected/dashboard -> Second protected endpoint using requireAuth
+app.get('/protected/dashboard', requireAuth, (req, res) => {
+  res.json({
+    message: "Welcome to your protected dashboard!",
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      last_sign_in_at: req.user.last_sign_in_at
     }
-
-    res.json({
-      id: user.id,
-      email: user.email,
-      created_at: user.created_at
-    });
-  } catch (err) {
-    return res.status(401).json({
-      error: "Invalid or expired token"
-    });
-  }
+  });
 });
 
 // GET / -> Root endpoint returning API information
