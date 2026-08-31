@@ -1,0 +1,172 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Task CRUD API",
+    "version": "1.0.0",
+    "description": "A beginner-friendly RESTful CRUD API built with Node.js and Express.js for managing tasks."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Get API Metadata",
+        "description": "Returns basic information about the API and available main endpoints.",
+        "responses": {
+          "200": {
+            "description": "API metadata retrieved successfully"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Returns the status of the server.",
+        "responses": {
+          "200": {
+            "description": "Server is healthy"
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "Get All Tasks",
+        "description": "Retrieves the list of all tasks in the in-memory array.",
+        "responses": {
+          "200": {
+            "description": "List of tasks retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a New Task",
+        "description": "Creates a new task. Generates an ID automatically and sets 'done' to false.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Buy milk"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task created successfully"
+          },
+          "400": {
+            "description": "Invalid input / missing title"
+          }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "summary": "Get Task by ID",
+        "description": "Retrieves details of a single task by its unique ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the task to retrieve",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task details retrieved successfully"
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a Task",
+        "description": "Updates the title and/or done status of an existing task by ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the task to update",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Learn Express properly"
+                  },
+                  "done": {
+                    "type": "boolean",
+                    "example": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task updated successfully"
+          },
+          "400": {
+            "description": "Invalid input parameters"
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a Task",
+        "description": "Deletes a task by its unique ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the task to delete",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Task deleted successfully (No Content)"
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        }
+      }
+    }
+  }
+}
