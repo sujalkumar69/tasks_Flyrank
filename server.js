@@ -101,6 +101,74 @@ app.post('/tasks', (req, res) => {
   });
 });
 
+// PUT /tasks/:id -> Update task in database
+app.put('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  const row = db.prepare('SELECT id, title, done FROM tasks WHERE id = ?').get(taskId);
+
+  if (!row) {
+    return res.status(404).json({
+      error: `Task ${taskId} not found`
+    });
+  }
+
+  const { title, done } = req.body;
+
+  // Validation: at least one field must be provided
+  if (title === undefined && done === undefined) {
+    return res.status(400).json({
+      error: "At least one field (title or done) must be provided for update"
+    });
+  }
+
+  // Validate title if supplied
+  if (title !== undefined) {
+    if (typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({
+        error: "Title cannot be empty or whitespace"
+      });
+    }
+  }
+
+  // Validate done if supplied
+  if (done !== undefined) {
+    if (typeof done !== 'boolean') {
+      return res.status(400).json({
+        error: "Done must be a boolean"
+      });
+    }
+  }
+
+  const newTitle = title !== undefined ? title.trim() : row.title;
+  const newDone = done !== undefined ? (done ? 1 : 0) : row.done;
+
+  const updateStmt = db.prepare('UPDATE tasks SET title = ?, done = ? WHERE id = ?');
+  updateStmt.run(newTitle, newDone, taskId);
+
+  res.json({
+    id: taskId,
+    title: newTitle,
+    done: Boolean(newDone)
+  });
+});
+
+// DELETE /tasks/:id -> Delete task from database
+app.delete('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  const row = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+
+  if (!row) {
+    return res.status(404).json({
+      error: `Task ${taskId} not found`
+    });
+  }
+
+  const deleteStmt = db.prepare('DELETE FROM tasks WHERE id = ?');
+  deleteStmt.run(taskId);
+
+  res.status(204).send();
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Swagger UI documentation available at http://localhost:${PORT}/docs`);
