@@ -3,6 +3,7 @@ const express = require('express');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./openapi.json');
 const { pool, initDb } = require('./db');
+const supabase = require('./supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,13 +14,82 @@ app.use(express.json());
 // Serve Swagger UI documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
+// ==========================================
+// Authentication Routes (Assignment A4)
+// ==========================================
+
+// POST /auth/signup -> Register a new user account with Supabase Auth
+app.post('/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Validation: Email and password are required
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string' || email.trim() === '' || password.trim() === '') {
+    return res.status(400).json({
+      error: "Email and password are required"
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.status(201).json({
+      message: "User created successfully",
+      user: data.user,
+      session: data.session
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /auth/login -> Authenticate user and return access & refresh tokens
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Validation: Email and password are required
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string' || email.trim() === '' || password.trim() === '') {
+    return res.status(400).json({
+      error: "Email and password are required"
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    });
+
+    if (error) {
+      return res.status(401).json({
+        error: "Invalid login credentials"
+      });
+    }
+
+    return res.json({
+      message: "Login successful",
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      user: data.user
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // GET / -> Root endpoint returning API information
 app.get('/', (req, res) => {
   res.json({
-    name: "Task API",
+    name: "Task & Auth API",
     version: "1.0",
-    storage: "PostgreSQL",
-    endpoints: ["/tasks", "/health", "/docs"]
+    storage: "PostgreSQL & Supabase Auth",
+    endpoints: ["/auth/signup", "/auth/login", "/public/info", "/protected/profile", "/tasks", "/health", "/docs"]
   });
 });
 
