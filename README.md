@@ -1,210 +1,143 @@
-# Task CRUD API (Containerized PostgreSQL Backed)
+# Task & Auth API (Supabase Auth & Containerized PostgreSQL)
 
-A robust, production-ready RESTful CRUD API built with **Node.js**, **Express.js**, and **PostgreSQL** — fully containerized using **Docker** and **Docker Compose**.
+A secure, production-grade RESTful API built with **Node.js**, **Express.js**, **PostgreSQL**, and **Supabase Auth**.
 
 ---
 
 ## 1. Goal & Overview
 
-This project is Assignment A3 of the FlyRank Internship Backend Track. It completes the storage evolution:
-* **A1**: In-memory storage (cleared on restart)
-* **A2**: SQLite database file (`tasks.db`)
-* **A3**: **Containerized PostgreSQL Database** (`postgres:16-alpine`) + Docker Compose
+This project builds on previous storage assignments (A1–A3) by adding **User Authentication & Route Authorization (Assignment A4)** using **Supabase Auth** as the Identity Provider.
 
-The entire stack — application server and relational database — starts with **one single command**: `docker compose up`.
-
----
-
-## 2. Features
-
-* **Containerized PostgreSQL Stack**: Database runs in a dedicated Docker container; data persists safely in a named Docker volume (`taskdata`).
-* **One-Command Startup**: Spin up both the Express API and Postgres DB with `docker compose up`.
-* **Zero Hardcoded Secrets**: Connection configuration lives in a git-ignored `.env` file (`.env.example` provided).
-* **Parameterized SQL Queries**: All queries use `$1`, `$2` placeholders via `node-postgres` (`pg`), protecting against SQL injection attacks.
-* **Auto-Table & First-Run Seeding**: On initial startup, the `tasks` table is created automatically, and 3 example tasks are seeded if the table is empty.
-* **Standard HTTP Status Codes & Error Handling**: Returns `200`, `201`, `204`, `400`, and `404` with clean JSON error messages.
-* **Interactive Swagger UI**: OpenAPI 3 documentation accessible at `/docs`.
+Key security practices implemented:
+* **No Custom Cryptography**: Password hashing, salt generation, and JWT token signing are handled safely by Supabase Auth.
+* **Token Verification Middleware**: Reusable Express middleware (`requireAuth`) verifies Bearer JWT signatures against Supabase before opening protected doors.
+* **Swagger UI Bearer Authorization**: Interactive OpenAPI documentation at `/docs` with a working **Authorize** padlock button.
 
 ---
 
-## 3. Tech Stack
+## 2. Environment Setup & Secrets
 
-* **Language & Server**: Node.js (v20+), Express.js (v5)
-* **Database**: PostgreSQL 16 (running via official `postgres:16-alpine` Docker container)
-* **Driver**: `pg` (node-postgres pool)
-* **Configuration**: `dotenv` (`.env`)
-* **Containerization**: Docker, Docker Compose (`compose.yaml`)
-* **API Documentation**: OpenAPI 3.0, Swagger UI Express
+### Step 1: Create `.env` from Template
 
----
-
-## 4. Quick Start (One Command)
-
-### Step 1: Clone & Configure Environment Secrets
-Copy `.env.example` to create your local `.env` file:
+Copy `.env.example` to create your local `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` content:
+### Step 2: Supabase Credentials Setup
+
+1. Create a free account & project at [supabase.com](https://supabase.com).
+2. Open **Project Settings → API** and copy:
+   - `SUPABASE_URL` (Project URL)
+   - `SUPABASE_KEY` (Anon public key)
+3. Open **Authentication → Providers → Email** and turn off **"Confirm email"** (enables immediate login after signup).
+4. Update your local `.env` file:
+
 ```ini
 DATABASE_URL=postgres://postgres:dev@localhost:5432/tasks
 PORT=3000
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
 ```
 
-### Step 2: Start the Entire Stack with Docker Compose
-Run:
+> **Security Check**: `.env` is listed in `.gitignore` and is never committed to Git.
 
+---
+
+## 3. Running the Server
+
+### Option A: Local Node Server
+```bash
+npm install
+npm start
+```
+Starts Express API on `http://localhost:3000`.
+
+### Option B: Docker Compose (Full Stack)
 ```bash
 docker compose up --build
 ```
-
-Docker will build the Express app container (`api`) and pull the Postgres database container (`db`), start both services, connect them automatically inside the container network, create the table, and seed initial data.
-
-To stop the stack:
-```bash
-docker compose down
-```
-
-> **Data Persistence**: Stopping or destroying containers (`docker compose down`) preserves all your tasks because database files live in the `taskdata` Docker volume.
+Starts Express API and PostgreSQL container together.
 
 ---
 
-## 5. API Endpoints
+## 4. API Reference Table
 
-| Method | Endpoint     | Description                    | Success Code | Error Codes |
-| ------ | ------------ | ------------------------------ | ------------ | ----------- |
-| GET    | `/`          | API metadata and storage mode  | `200 OK`     | -           |
-| GET    | `/health`    | Health check & DB connection   | `200 OK`     | `500`       |
-| GET    | `/tasks`     | List all tasks                 | `200 OK`     | `500`       |
-| GET    | `/tasks/:id` | Get details of a single task   | `200 OK`     | `400`, `404`|
-| POST   | `/tasks`     | Create a new task              | `201 Created`| `400`       |
-| PUT    | `/tasks/:id` | Update an existing task        | `200 OK`     | `400`, `404`|
-| DELETE | `/tasks/:id` | Delete a task by ID            | `204 No Content` | `400`, `404`|
-| GET    | `/docs`      | Interactive Swagger UI docs    | `200 OK`     | -           |
+| Method | Endpoint | Purpose | Auth Header Required? | Status Codes |
+| ------ | -------- | ------- | -------------------- | ------------ |
+| POST   | `/auth/signup` | Create user account | None | `201 Created`, `400` |
+| POST   | `/auth/login` | Authenticate & get JWT tokens | None | `200 OK`, `400`, `401` |
+| POST   | `/auth/logout` | End user session | `Authorization: Bearer <token>` | `204 No Content`, `401` |
+| GET    | `/public/info` | Open public information | None | `200 OK` |
+| GET    | `/protected/profile` | Read user profile data | `Authorization: Bearer <token>` | `200 OK`, `401` |
+| GET    | `/protected/dashboard` | Read user dashboard data | `Authorization: Bearer <token>` | `200 OK`, `401` |
+| GET    | `/tasks` | List all tasks | None | `200 OK` |
+| POST   | `/tasks` | Create task | None | `201 Created`, `400` |
+| PUT    | `/tasks/:id` | Update task | None | `200 OK`, `400`, `404` |
+| DELETE | `/tasks/:id` | Delete task | None | `204 No Content`, `404` |
+| GET    | `/docs` | Interactive Swagger UI | None | `200 OK` |
 
 ---
 
-## 6. Verification & Curl Examples
+## 5. Curl Testing Guide
 
-### Health Check (`GET /health`)
+### 1. Register User (`POST /auth/signup`)
 ```bash
-curl -i http://localhost:3000/health
-```
-**Response**:
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-
-{
-  "status": "ok",
-  "db": "ok"
-}
-```
-
-### List Tasks (`GET /tasks`)
-```bash
-curl -i http://localhost:3000/tasks
-```
-**Response**:
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-
-[
-  {"id":1,"title":"Learn Express","done":false},
-  {"id":2,"title":"Build CRUD API","done":false},
-  {"id":3,"title":"Test the API","done":true}
-]
-```
-
-### Create Task (`POST /tasks`)
-```bash
-curl -i -X POST http://localhost:3000/tasks \
+curl -i -X POST http://localhost:3000/auth/signup \
   -H "Content-Type: application/json" \
-  -d "{\"title\":\"Containerize stack with Docker\"}"
+  -d "{\"email\":\"testuser@example.com\",\"password\":\"password123\"}"
 ```
-**Response**:
-```http
-HTTP/1.1 201 Created
-Content-Type: application/json; charset=utf-8
+**Response**: `201 Created`
 
-{
-  "id": 4,
-  "title": "Containerize stack with Docker",
-  "done": false
-}
-```
-
-### Update Task (`PUT /tasks/4`)
+### 2. Log In (`POST /auth/login`)
 ```bash
-curl -i -X PUT http://localhost:3000/tasks/4 \
+curl -i -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d "{\"title\":\"Containerize stack with Docker Compose\",\"done\":true}"
+  -d "{\"email\":\"testuser@example.com\",\"password\":\"password123\"}"
 ```
-**Response**:
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
+**Response**: `200 OK` (Copy the returned `access_token` string).
 
-{
-  "id": 4,
-  "title": "Containerize stack with Docker Compose",
-  "done": true
-}
-```
-
-### Delete Task (`DELETE /tasks/4`)
+### 3. Access Public Info (`GET /public/info`)
 ```bash
-curl -i -X DELETE http://localhost:3000/tasks/4
+curl -i http://localhost:3000/public/info
 ```
-**Response**:
-```http
-HTTP/1.1 204 No Content
-```
+**Response**: `200 OK` (`{"message":"Welcome stranger! This info is public."}`)
 
-### Invalid ID / Not Found Test (`GET /tasks/999`)
+### 4. Access Protected Profile Without Token (`GET /protected/profile`)
 ```bash
-curl -i http://localhost:3000/tasks/999
+curl -i http://localhost:3000/protected/profile
 ```
-**Response**:
-```http
-HTTP/1.1 404 Not Found
-Content-Type: application/json; charset=utf-8
+**Response**: `401 Unauthorized` (`{"error":"Access token required"}`)
 
-{
-  "error": "Task 999 not found"
-}
+### 5. Access Protected Profile With Valid Token
+```bash
+curl -i http://localhost:3000/protected/profile \
+  -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>"
 ```
+**Response**: `200 OK` with user `id`, `email`, and `created_at`.
+
+### 6. Access Protected Profile With Invalid/Forged Token
+```bash
+curl -i http://localhost:3000/protected/profile \
+  -H "Authorization: Bearer invalid_token_123"
+```
+**Response**: `401 Unauthorized` (`{"error":"Invalid or expired token"}`)
+
+### 7. Log Out (`POST /auth/logout`)
+```bash
+curl -i -X POST http://localhost:3000/auth/logout \
+  -H "Authorization: Bearer <PASTE_YOUR_ACCESS_TOKEN_HERE>"
+```
+**Response**: `204 No Content`
 
 ---
 
-## 7. Database Verification (`psql`)
+## 6. Swagger UI & Bearer Authorization
 
-You can inspect the running PostgreSQL database inside the container at any time:
+Visit [http://localhost:3000/docs](http://localhost:3000/docs) in your browser:
 
-```bash
-docker exec -it taskdb psql -U postgres -d tasks -c "\dt"
-```
-```text
-         List of relations
- Schema |  Name  | Type  |  Owner   
---------+--------+-------+----------
- public | tasks  | table | postgres
-```
-
-Query task records directly:
-```bash
-docker exec -it taskdb psql -U postgres -d tasks -c "SELECT * FROM tasks;"
-```
-
----
-
-## 8. Database Persistence Explanation
-
-In Docker, container filesystems are ephemeral — if a container is removed, any data written inside it disappears. 
-
-To solve this, we use a named Docker volume (`taskdata:/var/lib/postgresql/data`).
-* **Why volumes exist**: The volume mounts storage from the host machine into the container's Postgres data directory.
-* **Proof of persistence**: When you run `docker compose down` and later `docker compose up`, your created tasks are still present because Postgres data is preserved on disk in the `taskdata` volume.
+1. Click the **Authorize** button (padlock icon) at the top right of the Swagger UI.
+2. Paste your JWT access token into the **Value** box and click **Authorize**.
+3. Expand `/protected/profile` or `/protected/dashboard` and click **Try it out** -> **Execute**.
+4. The request will automatically attach the `Authorization: Bearer <token>` header and return HTTP 200 OK.
