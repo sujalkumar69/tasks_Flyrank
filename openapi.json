@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Task CRUD API",
+    "title": "Task & Auth API",
     "version": "1.0.0",
-    "description": "A beginner-friendly RESTful CRUD API built with Node.js and Express.js for managing tasks."
+    "description": "A RESTful Task CRUD API with Supabase Authentication and JWT Bearer protection."
   },
   "servers": [
     {
@@ -11,11 +11,20 @@
       "description": "Local Development Server"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
   "paths": {
     "/": {
       "get": {
         "summary": "Get API Metadata",
-        "description": "Returns basic information about the API and available main endpoints.",
+        "description": "Returns basic information about the API and available endpoints.",
         "responses": {
           "200": {
             "description": "API metadata retrieved successfully"
@@ -26,10 +35,151 @@
     "/health": {
       "get": {
         "summary": "Health Check",
-        "description": "Returns the status of the server.",
+        "description": "Returns status of server and database connection.",
         "responses": {
           "200": {
-            "description": "Server is healthy"
+            "description": "Server is healthy and DB is connected"
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "summary": "User Registration",
+        "description": "Registers a new user account with Supabase Auth using email and password.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "testuser@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "securepassword123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully"
+          },
+          "400": {
+            "description": "Missing email/password or registration error"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "description": "Authenticates user with Supabase Auth and returns JWT access and refresh tokens.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "testuser@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "securepassword123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful (returns access_token and refresh_token)"
+          },
+          "400": {
+            "description": "Missing email or password"
+          },
+          "401": {
+            "description": "Invalid login credentials"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "User Logout",
+        "description": "Ends user session (Requires Bearer token).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Logout successful (No Content)"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired token"
+          }
+        }
+      }
+    },
+    "/public/info": {
+      "get": {
+        "summary": "Public Information Endpoint",
+        "description": "Publicly accessible endpoint returning open message.",
+        "responses": {
+          "200": {
+            "description": "Public data retrieved successfully"
+          }
+        }
+      }
+    },
+    "/protected/profile": {
+      "get": {
+        "summary": "Protected User Profile",
+        "description": "Retrieves authenticated user profile metadata (Requires Bearer JWT token).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile data retrieved successfully"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired token"
+          }
+        }
+      }
+    },
+    "/protected/dashboard": {
+      "get": {
+        "summary": "Protected User Dashboard",
+        "description": "Retrieves authenticated user dashboard metadata (Requires Bearer JWT token).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard data retrieved successfully"
+          },
+          "401": {
+            "description": "Missing, invalid, or expired token"
           }
         }
       }
@@ -37,16 +187,16 @@
     "/tasks": {
       "get": {
         "summary": "Get All Tasks",
-        "description": "Retrieves the list of all tasks in the in-memory array.",
+        "description": "Retrieves all tasks stored in PostgreSQL database.",
         "responses": {
           "200": {
-            "description": "List of tasks retrieved successfully"
+            "description": "List of tasks"
           }
         }
       },
       "post": {
         "summary": "Create a New Task",
-        "description": "Creates a new task. Generates an ID automatically and sets 'done' to false.",
+        "description": "Creates a new task in PostgreSQL.",
         "requestBody": {
           "required": true,
           "content": {
@@ -57,7 +207,7 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "example": "Buy milk"
+                    "example": "Learn Supabase Auth"
                   }
                 }
               }
@@ -77,13 +227,12 @@
     "/tasks/{id}": {
       "get": {
         "summary": "Get Task by ID",
-        "description": "Retrieves details of a single task by its unique ID.",
+        "description": "Retrieves task details by unique ID.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "description": "ID of the task to retrieve",
             "schema": {
               "type": "integer"
             }
@@ -91,7 +240,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Task details retrieved successfully"
+            "description": "Task details"
           },
           "404": {
             "description": "Task not found"
@@ -100,13 +249,12 @@
       },
       "put": {
         "summary": "Update a Task",
-        "description": "Updates the title and/or done status of an existing task by ID.",
+        "description": "Updates task title or done status.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "description": "ID of the task to update",
             "schema": {
               "type": "integer"
             }
@@ -121,7 +269,7 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "example": "Learn Express properly"
+                    "example": "Learn Supabase Auth & JWT"
                   },
                   "done": {
                     "type": "boolean",
@@ -134,10 +282,10 @@
         },
         "responses": {
           "200": {
-            "description": "Task updated successfully"
+            "description": "Task updated"
           },
           "400": {
-            "description": "Invalid input parameters"
+            "description": "Invalid input"
           },
           "404": {
             "description": "Task not found"
@@ -146,13 +294,12 @@
       },
       "delete": {
         "summary": "Delete a Task",
-        "description": "Deletes a task by its unique ID.",
+        "description": "Deletes a task by ID.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "description": "ID of the task to delete",
             "schema": {
               "type": "integer"
             }
@@ -160,7 +307,7 @@
         ],
         "responses": {
           "204": {
-            "description": "Task deleted successfully (No Content)"
+            "description": "Task deleted (No Content)"
           },
           "404": {
             "description": "Task not found"
