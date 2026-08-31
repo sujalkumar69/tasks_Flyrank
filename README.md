@@ -1,129 +1,210 @@
-# Task CRUD API (SQLite Backed)
+# Task CRUD API (Containerized PostgreSQL Backed)
 
-A simple, beginner-friendly RESTful CRUD API built with Node.js, Express.js, and a persistent **SQLite database (`tasks.db`)**.
+A robust, production-ready RESTful CRUD API built with **Node.js**, **Express.js**, and **PostgreSQL** — fully containerized using **Docker** and **Docker Compose**.
 
 ---
 
-## 1. Project Description
+## 1. Goal & Overview
 
-The **Task API** allows users to perform complete CRUD (Create, Read, Update, Delete) operations on tasks. Each task object consists of an `id`, a `title`, and a `done` status. Unlike memory-based storage, all tasks are saved to a local SQLite database (`tasks.db`), ensuring data survives server restarts.
+This project is Assignment A3 of the FlyRank Internship Backend Track. It completes the storage evolution:
+* **A1**: In-memory storage (cleared on restart)
+* **A2**: SQLite database file (`tasks.db`)
+* **A3**: **Containerized PostgreSQL Database** (`postgres:16-alpine`) + Docker Compose
+
+The entire stack — application server and relational database — starts with **one single command**: `docker compose up`.
 
 ---
 
 ## 2. Features
 
-* **Persistent SQLite Database**: Data lives on disk in `tasks.db` and persists across server restarts.
-* **Complete CRUD Operations**: Create, view, update, and delete tasks using standard SQL queries (`SELECT`, `INSERT`, `UPDATE`, `DELETE`).
-* **Parameterized Queries**: All database queries use `?` placeholders to protect against SQL injection attacks.
-* **Input Validation**: Rejects missing, empty, or whitespace-only task titles with `400 Bad Request`.
-* **Standard HTTP Status Codes**: Returns `200`, `201`, `204`, `400`, and `404` appropriately.
-* **Interactive API Documentation**: Embedded Swagger UI accessible at `/docs`.
+* **Containerized PostgreSQL Stack**: Database runs in a dedicated Docker container; data persists safely in a named Docker volume (`taskdata`).
+* **One-Command Startup**: Spin up both the Express API and Postgres DB with `docker compose up`.
+* **Zero Hardcoded Secrets**: Connection configuration lives in a git-ignored `.env` file (`.env.example` provided).
+* **Parameterized SQL Queries**: All queries use `$1`, `$2` placeholders via `node-postgres` (`pg`), protecting against SQL injection attacks.
+* **Auto-Table & First-Run Seeding**: On initial startup, the `tasks` table is created automatically, and 3 example tasks are seeded if the table is empty.
+* **Standard HTTP Status Codes & Error Handling**: Returns `200`, `201`, `204`, `400`, and `404` with clean JSON error messages.
+* **Interactive Swagger UI**: OpenAPI 3 documentation accessible at `/docs`.
 
 ---
 
-## 3. Technologies
+## 3. Tech Stack
 
-* **Node.js**: JavaScript runtime environment.
-* **Express.js**: Web framework for Node.js.
-* **better-sqlite3**: Synchronous, high-performance SQLite library for Node.js.
-* **Swagger UI Express**: Middleware for serving auto-generated OpenAPI 3 interactive documentation.
-* **OpenAPI 3.0**: Standardized API specification format (`openapi.json`).
+* **Language & Server**: Node.js (v20+), Express.js (v5)
+* **Database**: PostgreSQL 16 (running via official `postgres:16-alpine` Docker container)
+* **Driver**: `pg` (node-postgres pool)
+* **Configuration**: `dotenv` (`.env`)
+* **Containerization**: Docker, Docker Compose (`compose.yaml`)
+* **API Documentation**: OpenAPI 3.0, Swagger UI Express
 
 ---
 
-## 4. Installation
+## 4. Quick Start (One Command)
 
-Clone the repository and install the dependencies:
+### Step 1: Clone & Configure Environment Secrets
+Copy `.env.example` to create your local `.env` file:
 
 ```bash
-npm install
+cp .env.example .env
 ```
 
----
+`.env` content:
+```ini
+DATABASE_URL=postgres://postgres:dev@localhost:5432/tasks
+PORT=3000
+```
 
-## 5. Running the API
-
-Start the Express server on `http://localhost:3000`:
+### Step 2: Start the Entire Stack with Docker Compose
+Run:
 
 ```bash
-npm start
+docker compose up --build
 ```
 
-When started for the first time, `tasks.db` is automatically created, the `tasks` table is initialized, and 3 example tasks are seeded automatically.
+Docker will build the Express app container (`api`) and pull the Postgres database container (`db`), start both services, connect them automatically inside the container network, create the table, and seed initial data.
+
+To stop the stack:
+```bash
+docker compose down
+```
+
+> **Data Persistence**: Stopping or destroying containers (`docker compose down`) preserves all your tasks because database files live in the `taskdata` Docker volume.
 
 ---
 
-## 6. API Endpoints
+## 5. API Endpoints
 
-| Method | Endpoint     | Description                    | Status Code |
-| ------ | ------------ | ------------------------------ | ----------- |
-| GET    | `/`          | API metadata and links         | `200 OK`    |
-| GET    | `/health`    | Health check status            | `200 OK`    |
-| GET    | `/tasks`     | List all tasks                 | `200 OK`    |
-| GET    | `/tasks/:id` | Get details of a single task   | `200 OK`    |
-| POST   | `/tasks`     | Create a new task              | `201 Created` |
-| PUT    | `/tasks/:id` | Update an existing task        | `200 OK`    |
-| DELETE | `/tasks/:id` | Delete a task by ID            | `204 No Content` |
-
-### Error Codes
-* **HTTP 400 Bad Request**: Returned when request body fails validation (missing title, empty string, invalid boolean).
-* **HTTP 404 Not Found**: Returned when attempting to fetch, update, or delete a task ID that does not exist in the database.
+| Method | Endpoint     | Description                    | Success Code | Error Codes |
+| ------ | ------------ | ------------------------------ | ------------ | ----------- |
+| GET    | `/`          | API metadata and storage mode  | `200 OK`     | -           |
+| GET    | `/health`    | Health check & DB connection   | `200 OK`     | `500`       |
+| GET    | `/tasks`     | List all tasks                 | `200 OK`     | `500`       |
+| GET    | `/tasks/:id` | Get details of a single task   | `200 OK`     | `400`, `404`|
+| POST   | `/tasks`     | Create a new task              | `201 Created`| `400`       |
+| PUT    | `/tasks/:id` | Update an existing task        | `200 OK`     | `400`, `404`|
+| DELETE | `/tasks/:id` | Delete a task by ID            | `204 No Content` | `400`, `404`|
+| GET    | `/docs`      | Interactive Swagger UI docs    | `200 OK`     | -           |
 
 ---
 
-## 7. SQL Exploration (Stage 4)
+## 6. Verification & Curl Examples
 
-We tested and verified queries by hand in SQLite / DB Browser:
+### Health Check (`GET /health`)
+```bash
+curl -i http://localhost:3000/health
+```
+**Response**:
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
 
-* **Executed Query**:
-  ```sql
-  SELECT COUNT(*) FROM tasks;
-  ```
-* **Returned Result**:
-  `count: 3` — Returned the total number of task rows currently stored in `tasks.db`.
+{
+  "status": "ok",
+  "db": "ok"
+}
+```
 
----
-
-## 8. Curl Examples
-
-### GET /tasks (List All Tasks)
+### List Tasks (`GET /tasks`)
 ```bash
 curl -i http://localhost:3000/tasks
 ```
+**Response**:
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
 
-### POST /tasks (Create Task)
+[
+  {"id":1,"title":"Learn Express","done":false},
+  {"id":2,"title":"Build CRUD API","done":false},
+  {"id":3,"title":"Test the API","done":true}
+]
+```
+
+### Create Task (`POST /tasks`)
 ```bash
 curl -i -X POST http://localhost:3000/tasks \
   -H "Content-Type: application/json" \
-  -d "{\"title\":\"Buy milk\"}"
+  -d "{\"title\":\"Containerize stack with Docker\"}"
+```
+**Response**:
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json; charset=utf-8
+
+{
+  "id": 4,
+  "title": "Containerize stack with Docker",
+  "done": false
+}
 ```
 
-### PUT /tasks/4 (Update Task)
+### Update Task (`PUT /tasks/4`)
 ```bash
 curl -i -X PUT http://localhost:3000/tasks/4 \
   -H "Content-Type: application/json" \
-  -d "{\"title\":\"Buy organic milk\",\"done\":true}"
+  -d "{\"title\":\"Containerize stack with Docker Compose\",\"done\":true}"
+```
+**Response**:
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+  "id": 4,
+  "title": "Containerize stack with Docker Compose",
+  "done": true
+}
 ```
 
-### DELETE /tasks/4 (Delete Task)
+### Delete Task (`DELETE /tasks/4`)
 ```bash
 curl -i -X DELETE http://localhost:3000/tasks/4
 ```
+**Response**:
+```http
+HTTP/1.1 204 No Content
+```
+
+### Invalid ID / Not Found Test (`GET /tasks/999`)
+```bash
+curl -i http://localhost:3000/tasks/999
+```
+**Response**:
+```http
+HTTP/1.1 404 Not Found
+Content-Type: application/json; charset=utf-8
+
+{
+  "error": "Task 999 not found"
+}
+```
 
 ---
 
-## 9. Swagger Documentation
+## 7. Database Verification (`psql`)
 
-Interactive API documentation is available at:
+You can inspect the running PostgreSQL database inside the container at any time:
 
-[http://localhost:3000/docs](http://localhost:3000/docs)
+```bash
+docker exec -it taskdb psql -U postgres -d tasks -c "\dt"
+```
+```text
+         List of relations
+ Schema |  Name  | Type  |  Owner   
+--------+--------+-------+----------
+ public | tasks  | table | postgres
+```
 
-> **Swagger UI Screenshot Placeholder**:
-> ![Swagger UI Screenshot](swagger-screenshot.png)
+Query task records directly:
+```bash
+docker exec -it taskdb psql -U postgres -d tasks -c "SELECT * FROM tasks;"
+```
 
 ---
 
-## 10. Why SQLite & Persistence
+## 8. Database Persistence Explanation
 
-* **Why SQLite?**: SQLite is a serverless, zero-configuration, file-based relational database. It is ideal for local development, desktop apps, and lightweight backend services because it requires no database server process or network setup.
-* **Database File Location**: The database lives in `tasks.db` at the root of the project. It is automatically created on first startup and ignored by Git (`.gitignore`) so every new clone starts with a clean database.
+In Docker, container filesystems are ephemeral — if a container is removed, any data written inside it disappears. 
+
+To solve this, we use a named Docker volume (`taskdata:/var/lib/postgresql/data`).
+* **Why volumes exist**: The volume mounts storage from the host machine into the container's Postgres data directory.
+* **Proof of persistence**: When you run `docker compose down` and later `docker compose up`, your created tasks are still present because Postgres data is preserved on disk in the `taskdata` volume.
